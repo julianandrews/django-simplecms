@@ -15,7 +15,7 @@ def page_middleware(get_response):
         try:
             resolve(request.path_info)
         except Resolver404:
-            if request.page:
+            if request.page and request.page.content
                 return page_view(request)
 
         return get_response(request)

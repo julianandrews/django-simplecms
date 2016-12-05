@@ -90,8 +90,8 @@ class CMSPage(MP_Node):
     cmssite = models.ForeignKey(CMSSite, related_name='pages')
     slug = models.CharField(max_length=255)
     content = models.ForeignKey(
-        settings.SIMPLECMS_CONTENT_MODEL, null=True, blank=True,
-        related_name='pages',
+        settings.SIMPLECMS_CONTENT_MODEL, models.SET_NULL, null=True,
+        blank=True, related_name='pages',
     )
 
     objects = PageManager()
