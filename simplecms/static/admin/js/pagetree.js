@@ -81,6 +81,9 @@ $(function() {
     }
     $tree.tree('updateNode', node, data);
     $.modal.close();
+    // TODO: if adding a page, we should set some flag that prevents further
+    // requests until we've gotten a response from the server with the id. As
+    // it stands now, newly created ids could be overwritten.
     updateServer();
   });
 
