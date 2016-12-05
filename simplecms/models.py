@@ -82,8 +82,8 @@ class CMSContent(AbstractCMSContent):
 
 class PageManager(MP_NodeManager):
     def for_slug(self, slug):
-        sanitized = slug.strip('/')
-        return self.filter(slug=sanitized)
+        normalized = slug.strip('/')
+        return self.filter(slug=normalized)
 
 
 class CMSPage(MP_Node):
