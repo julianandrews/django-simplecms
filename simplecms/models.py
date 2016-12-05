@@ -44,7 +44,7 @@ class CMSSite(models.Model):
 
         with transaction.atomic():
             cleaned_data = parse_json_data(data)
-            CMSPage.objects.exclude(pk__in=pks).delete()
+            CMSPage.objects.filter(cmssite=self).exclude(pk__in=pks).delete()
             CMSPage.load_bulk(cleaned_data, keep_ids=True)
 
     def get_pagetree_data(self):
