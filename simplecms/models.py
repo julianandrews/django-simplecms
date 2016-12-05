@@ -22,7 +22,7 @@ class CMSSite(models.Model):
     def update_pagetree(self, data):
         pks = []
 
-        def parse_json_data(data):
+        def parse_json_data(data, partial_slug=''):
             parsed_data = []
             for d in data:
                 if d.get('id') is None:
@@ -34,10 +34,12 @@ class CMSSite(models.Model):
                 slug = d.get('name')
                 if slug is None or not SLUG_RE.match(slug):
                     raise PageTreeParseError()
+                if partial_slug:
+                    slug = '/'.join((partial_slug, slug))
                 parsed_data.append({
                     'id': pk,
                     'data': {'slug': slug, 'cmssite': self.pk},
-                    'children': parse_json_data(d.get('children', [])),
+                    'children': parse_json_data(d.get('children', []), slug),
                 })
                 pks.append(pk)
             return parsed_data
@@ -51,7 +53,7 @@ class CMSSite(models.Model):
         def parse_tree_data(data):
             return [{
                 'id': d['id'],
-                'name': d['data']['slug'],
+                'name': d['data']['slug'].split('/')[-1],
                 'children': parse_tree_data(d.get('children', []))
             } for d in data if d['data']['cmssite'] == 1]
 
