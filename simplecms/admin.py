@@ -1,15 +1,81 @@
+from django import forms
 from django.conf.urls import url
 from django.contrib import admin
+from django.core.exceptions import SuspiciousOperation
 from django.http import JsonResponse
 
 import json
 
-from .models import CMSContent, CMSPage, CMSSite, PageTreeParseError
+from .models import CMSContent, CMSPage, CMSSite, PageTreeParseError, SLUG_RE
 
 
 @admin.register(CMSContent)
 class CMSContentAdmin(admin.ModelAdmin):
     pass
+
+
+class PageAdminForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.initial.get('slug'):
+            self.initial['slug'] = self.initial['slug'].split('/')[-1]
+
+    def clean_slug(self):
+        slug = self.cleaned_data['slug']
+        if not SLUG_RE.match(slug):
+            raise forms.ValidationError("Invalid slug")
+        return '/'.join((self.path, slug))
+
+
+@admin.register(CMSPage)
+class CMSPageAdmin(admin.ModelAdmin):
+    form = PageAdminForm
+
+    class Media:
+        js = (
+            'admin/js/pageadmin.js',
+        )
+
+    def get_form(self, request, obj=None, **kwargs):
+        if request.GET.get('cmssite', None) is None:
+            kwargs['fields'] = ('cmssite', 'slug', 'content')
+        else:
+            kwargs['fields'] = ('slug', 'content')
+        form = super().get_form(request, obj, **kwargs)
+        if obj is not None:
+            form.path = obj.slug.rsplit('/', 1)[0]
+        else:
+            parent_id = request.GET.get('parent', None)
+            if parent_id:
+                try:
+                    parent = CMSPage.objects.get(pk=parent_id)
+                except CMSPage.DoesNotExist:
+                    raise SuspiciousOperation("Invalid Parent Page")
+                form.path = parent.slug
+            else:
+                form.path = ''
+        return form
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            obj.save()
+        else:
+            cmssite_id = request.GET.get('cmssite', None)
+            try:
+                cmssite = CMSSite.objects.get(pk=cmssite_id)
+            except CMSSite.DoesNotExist:
+                raise SuspiciousOperation("Invalid CMSSite")
+            obj.cmssite = cmssite
+
+            parent_id = request.GET.get('parent', None)
+            if parent_id is None:
+                CMSPage.add_root(instance=obj)
+            else:
+                try:
+                    parent = CMSPage.objects.get(pk=parent_id)
+                except CMSPage.DoesNotExist:
+                    raise SuspiciousOperation("Invalid Parent Page")
+                parent.add_child(instance=obj)
 
 
 @admin.register(CMSSite)
@@ -18,7 +84,11 @@ class CMSSiteAdmin(admin.ModelAdmin):
 
     class Media:
         css = {
-            'all': ('admin/css/jqtree.css', 'admin/css/jquery.modal.min.css')
+            'all': (
+                'admin/css/jqtree.css',
+                'admin/css/jquery.modal.min.css',
+                'admin/css/pagetree.css'
+            )
         }
         js = (
             'admin/js/csrf.js',

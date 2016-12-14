@@ -2,11 +2,13 @@ import re
 
 from django.conf import settings
 from django.contrib.sites.models import Site
+from django.core.validators import RegexValidator
 from django.db import models, transaction
 
 from treebeard.mp_tree import MP_Node, MP_NodeManager
 
-SLUG_RE = re.compile(r'^[-a-zA-z0-9_]')
+SLUG_RE = re.compile(r'^[-a-zA-z0-9_]*$')
+FULL_SLUG_RE = re.compile(r'^[-a-zA-z0-9_/]*$')
 
 
 class PageTreeParseError(Exception):
@@ -87,8 +89,8 @@ class PageManager(MP_NodeManager):
 
 
 class CMSPage(MP_Node):
-    cmssite = models.ForeignKey(CMSSite, related_name='pages')
-    slug = models.CharField(max_length=255)
+    cmssite = models.ForeignKey(CMSSite, related_name='pages', verbose_name='CMS Site')
+    slug = models.CharField(max_length=255, validators=[RegexValidator(FULL_SLUG_RE)])
     content = models.ForeignKey(
         settings.SIMPLECMS_CONTENT_MODEL, models.SET_NULL, null=True,
         blank=True, related_name='pages',
@@ -98,6 +100,9 @@ class CMSPage(MP_Node):
 
     def get_asbolute_url(self):
         return self.slug
+
+    class Meta:
+        verbose_name = 'CMS Page'
 
     def __str__(self):
         return "Page for '{}'".format(self.slug)

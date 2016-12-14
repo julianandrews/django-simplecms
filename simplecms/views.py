@@ -4,6 +4,7 @@ from django.views.generic.detail import SingleObjectMixin
 
 
 class PageView(SingleObjectMixin, View):
+    # TODO: Add permissions checks
     def get_object(self, queryset=None):
         return self.request.page
 
@@ -11,5 +12,6 @@ class PageView(SingleObjectMixin, View):
         self.object = self.get_object()
         context = self.get_context_data()
         return HttpResponse(request.page.content.render(context))
+
 
 page_view = PageView.as_view()

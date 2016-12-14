@@ -8,6 +8,20 @@ $(function() {
   // TODO: write beforeunload handler to catch navigation away if lastJqHXR
   // isn't null
 
+  function lockAndReload() {
+    // TODO: Lock the tree before reloading, unlock on the callback
+    $tree.tree('reload', function() {
+      console.log('Data reloaded');
+    });
+  }
+
+  function handlePageSubmit() {
+    $.modal.close();
+    $('#pageAdmin').removeAttr('src');
+    lockAndReload();
+  }
+  window.handlePageSubmit = handlePageSubmit;
+
   function updateServer() {
     lastJqXHR = $.post(
       $tree.data('url'),
@@ -27,7 +41,7 @@ $(function() {
         if (jqXHR.status == 401) {
           // Redirect to login
         } else if (jqXHR.status == 409) {
-          // Lock the tree, display an error, reload the tree, unlock the tree
+          lockAndReload();
         } else {
           // Retry with exponential back-off if appropriate. Show an error
           // message if not retrying.
@@ -37,55 +51,25 @@ $(function() {
   }
 
   function openEditModal(node, parentNode) {
-    var $modal = $('#page-edit');
-    $modal.data('node', node);
-    $modal.data('parentNode', parentNode);
-    $modal.find('input#slug').val(node ? node.name : '');
-    $modal.modal();
-    $modal.find('input#slug').focus();
-  }
-
-  function validateEditModal() {
-    var slug = $('#page-edit input#slug').val();
-    var errors = [];
-    if (slug === '') {
-      errors.push($('<li>Slug is required</li>'));
-    }
-    if (!/^[-a-z0-9_]*$/.test(slug)) {
-      errors.push($(
-        '<li>Invalid slug. Only numbers letters and "-" allowed.</li>'
-      ));
-    }
-    if (errors.length > 0) {
-      $('#page-edit .errorlist').html(errors);
-      return null;
-    }
-    return {name: slug};
-  }
-
-  $('#page-edit form').submit(function(event) {
-    event.preventDefault();
-    var data = validateEditModal();
-    if (data === null) {
-      return;
-    }
-
-    $modal = $('#page-edit');
-    var node = $modal.data('node');
+    // TODO: check if any XHR is in flight. If one is, wait for it to be resolved
+    // Maybe this can best be done by using a queue? The queue could take
+    // updateServer and openEditModal calls, and process them linearly. If one
+    // takes too long, maybe timeout and show an error?
+    var $modal = $('#pageAdmin');
     if (node === null) {
-      // Find the parent node and add a new child.
-      var parentNode = $modal.data('parentNode') || $tree.tree('getTree');
-      $tree.tree('appendNode', {}, parentNode);
-      $tree.tree('openNode', parentNode);
-      node = parentNode.children[parentNode.children.length - 1];
+      var url = $modal.data('add-url') + '?_popup=1';
+      if (parentNode !== null) {
+        url += '&parent=' + parentNode.id;
+      }
     }
-    $tree.tree('updateNode', node, data);
-    $.modal.close();
-    // TODO: if adding a page, we should set some flag that prevents further
-    // requests until we've gotten a response from the server with the id. As
-    // it stands now, newly created ids could be overwritten.
-    updateServer();
-  });
+    else {
+      var url = $modal.data('change-url').replace('0', node.id) + '?_popup=1';
+    }
+    url += '&cmssite=1';
+    $modal.attr('src', url);
+    $modal.modal();
+    $modal.focus();
+  }
 
   $('#delete-confirm form').submit(function(event) {
     event.preventDefault();
@@ -115,11 +99,16 @@ $(function() {
   });
 
   $tree.on('click', '.node-delete', function(event) {
+    console.log('Foo');
     event.preventDefault();
     var $modal = $('#delete-confirm');
     var node = $tree.tree('getNodeByHtmlElement', event.currentTarget);
     $modal.data('node', node);
     $modal.modal();
+  });
+
+  $('#pageAdmin').on('load', function(event) {
+    this.style.height = this.contentWindow.document.body.scrollHeight + 'px';
   });
 
   $tree.tree({

@@ -30,23 +30,13 @@
     <img src="{% static 'admin/img/icon-deletelink.svg' %}" alt="{% trans 'Delete' %}"/>
   </a>
 
-  <div id="page-edit">
-    <form>
-      <ul class="errorlist">
-      </ul>
-      <div>
-        <label class="required" for="slug">{% trans 'Slug' %}</label>
-        <input type="text" id="slug" name="slug"/>
-      </div>
-      <input type="submit" value="Submit">
-    </form>
-  </div>
+  <iframe id="pageAdmin" data-add-url="{% url 'admin:simplecms_cmspage_add' %}" data-change-url="{% url 'admin:simplecms_cmspage_change' 0 %}"></iframe>
 
   <div id="delete-confirm">
-    <h2>Confirm Delete</h2>
-    <p>Are you sure you want to delete this page?</p>
+    <h2>{% trans 'Confirm Delete' %}</h2>
+    <p>{% trans 'Are you sure you want to delete this page?' %}</p>
     <form>
-      <input type="submit" value="Yes">
+      <input type="submit" value="{% trans 'Yes' %}">
     </form>
   </div>
 </div>
