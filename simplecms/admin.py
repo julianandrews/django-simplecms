@@ -21,10 +21,12 @@ class PageAdminForm(forms.ModelForm):
             self.initial['slug'] = self.initial['slug'].split('/')[-1]
 
     def clean_slug(self):
-        slug = self.cleaned_data['slug']
+        slug = self.cleaned_data['slug'].strip('/')
         if not SLUG_RE.match(slug):
             raise forms.ValidationError("Invalid slug")
-        return '/'.join((self.path, slug))
+        if self.path:
+            slug = '/'.join((self.path, slug))
+        return slug
 
 
 @admin.register(CMSPage)
@@ -43,7 +45,7 @@ class CMSPageAdmin(admin.ModelAdmin):
             kwargs['fields'] = ('slug', 'content')
         form = super().get_form(request, obj, **kwargs)
         if obj is not None:
-            form.path = obj.slug.rsplit('/', 1)[0]
+            form.path = obj.slug.rsplit('/', 1)[0] if '/' in obj.slug else ''
         else:
             parent_id = request.GET.get('parent', None)
             if parent_id:

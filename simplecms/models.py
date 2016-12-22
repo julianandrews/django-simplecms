@@ -22,7 +22,11 @@ class CMSSite(models.Model):
         verbose_name = "CMS Site"
 
     def update_pagetree(self, data):
+        # TODO: Optimistic locking
         pks = []
+        content_ids = {
+            page.id: page.content_id for page in CMSPage.objects.filter(cmssite=self)
+        }
 
         def parse_json_data(data, partial_slug=''):
             parsed_data = []
@@ -34,13 +38,18 @@ class CMSSite(models.Model):
                 else:
                     pk = d['id']
                 slug = d.get('name')
+                slug = '' if slug == '</>' else slug
                 if slug is None or not SLUG_RE.match(slug):
                     raise PageTreeParseError()
                 if partial_slug:
                     slug = '/'.join((partial_slug, slug))
+                data = {'slug': slug, 'cmssite': self.pk}
+                content_id = content_ids.get(pk)
+                if content_id is not None:
+                    data['content'] = content_ids.get(pk)
                 parsed_data.append({
                     'id': pk,
-                    'data': {'slug': slug, 'cmssite': self.pk},
+                    'data': data,
                     'children': parse_json_data(d.get('children', []), slug),
                 })
                 pks.append(pk)
@@ -55,7 +64,7 @@ class CMSSite(models.Model):
         def parse_tree_data(data):
             return [{
                 'id': d['id'],
-                'name': d['data']['slug'].split('/')[-1],
+                'name': d['data']['slug'].split('/')[-1] or '</>',
                 'children': parse_tree_data(d.get('children', []))
             } for d in data if d['data']['cmssite'] == 1]
 
@@ -90,7 +99,7 @@ class PageManager(MP_NodeManager):
 
 class CMSPage(MP_Node):
     cmssite = models.ForeignKey(CMSSite, related_name='pages', verbose_name='CMS Site')
-    slug = models.CharField(max_length=255, validators=[RegexValidator(FULL_SLUG_RE)])
+    slug = models.CharField(max_length=255, validators=[RegexValidator(FULL_SLUG_RE)], blank=True)
     content = models.ForeignKey(
         settings.SIMPLECMS_CONTENT_MODEL, models.SET_NULL, null=True,
         blank=True, related_name='pages',
@@ -98,8 +107,8 @@ class CMSPage(MP_Node):
 
     objects = PageManager()
 
-    def get_asbolute_url(self):
-        return self.slug
+    def get_absolute_url(self):
+        return '/{}/'.format(self.slug)
 
     class Meta:
         verbose_name = 'CMS Page'
