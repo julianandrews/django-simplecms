@@ -106,29 +106,29 @@ class CMSSiteAdmin(admin.ModelAdmin):
         ) for kind in ['change', 'add', 'delete'])
 
     def pagetree_view(self, request, pk):
-        def JsonError(status):
+        def json_error(status):
             return JsonResponse(data={"error": status}, status=status)
 
         if not request.user.is_authenticated():
-            return JsonError(401)
+            return json_error(401)
         if not self.has_module_permission(request):
-            return JsonError(403)
+            return json_error(403)
         try:
             cmssite = CMSSite.objects.prefetch_related('pages').get(pk=pk)
         except CMSSite.DoesNotExist:
-            return JsonError(404)
+            return json_error(404)
 
         if request.method == 'POST':
             if not self.has_tree_edit_perm(request):
-                return JsonError(403)
+                return json_error(403)
             try:
                 tree_data = json.loads(request.POST.get('tree'))
             except json.JSONDecodeError:
-                return JsonError(400)
+                return json_error(400)
             try:
                 cmssite.update_pagetree(tree_data)
             except PageTreeParseError:
-                return JsonError(400)
+                return json_error(400)
             # TODO: catch bulk_load errors and return a 409 error with
             # appropriate info.
 
