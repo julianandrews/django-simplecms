@@ -5,8 +5,12 @@ $(function() {
   var $tree = $('#pagetree');
   var lastJqXHR = null;
 
-  // TODO: write beforeunload handler to catch navigation away if lastJqHXR
-  // isn't null
+  window.onbeforeunload = function(e)
+  {
+    if (lastJqXHR !== null) {
+      return true;
+    }
+  };
 
   function lockAndReload() {
     // TODO: Lock the tree before reloading, unlock on the callback
@@ -44,31 +48,40 @@ $(function() {
           lockAndReload();
         } else {
           // Retry with exponential back-off if appropriate. Show an error
-          // message if not retrying.
+          // message if not retrying, and clear the jqXHR.
         }
       }
     });
   }
 
   function openEditModal(node, parentNode) {
-    // TODO: check if any XHR is in flight. If one is, wait for it to be resolved
-    // Maybe this can best be done by using a queue? The queue could take
-    // updateServer and openEditModal calls, and process them linearly. If one
-    // takes too long, maybe timeout and show an error?
-    var $modal = $('#pageAdmin');
-    if (node === null) {
-      var url = $modal.data('add-url') + '?_popup=1';
-      if (parentNode !== null) {
-        url += '&parent=' + parentNode.id;
+    function doit() {
+      var $modal = $('#pageAdmin');
+      if (node === null) {
+        var url = $modal.data('add-url') + '?_popup=1';
+        if (parentNode !== null) {
+          url += '&parent=' + parentNode.id;
+        }
       }
+      else {
+        var url = $modal.data('change-url').replace('0', node.id) + '?_popup=1';
+      }
+      url += '&cmssite=1';
+      $modal.attr('src', url);
+      $modal.modal();
+      $modal.focus();
     }
-    else {
-      var url = $modal.data('change-url').replace('0', node.id) + '?_popup=1';
+
+    if (lastJqXHR !== null) {
+      lastJqXHR.done(
+        doit
+      ).fail(function(jqXHR, textStatus, errorThrown) {
+        // TODO: Do something smarter here.
+        console.log("Pending request failed");
+      });
+    } else {
+      doit();
     }
-    url += '&cmssite=1';
-    $modal.attr('src', url);
-    $modal.modal();
-    $modal.focus();
   }
 
   $('#delete-confirm form').submit(function(event) {
